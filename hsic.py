@@ -4,7 +4,7 @@ from jax import vmap, random, jit, lax
 from jax.flatten_util import ravel_pytree
 from functools import partial
     
-
+# can comment the partial while trying to write the code
 @partial(jit, static_argnums=(5, 6, 7))
 def hsic(
     X,
@@ -55,9 +55,9 @@ def hsic(
     Returns
     -------
     output: int
-        0 if the dpHSIC test fails to reject the null 
+        0 if the HSIC test fails to reject the null 
             (i.e. data comes from the same distribution)
-        1 if the dpHSIC test rejects the null 
+        1 if the HSIC test rejects the null 
             (i.e. data comes from different distributions)
     dictionary: dict
         Returned only if return_dictionary is True.
@@ -93,7 +93,9 @@ def hsic(
     L = kernel_matrix(pairwise_matrix_Y, l, kernel, bandwidth)
 
     # compute HSIC permuted values (B + 1, )
-    compute_hsic = lambda index : jnp.sum(K[index][:, index] * L)
+    # check the scaling 
+    compute_hsic = lambda index : jnp.sum(K[index][:, index] * L) / (n - 1) ** 2
+    # lax.map gives [compute_hsic(i) for i in idx]
     hsic_values = lax.map(compute_hsic, idx)  # (B + 1, )
     hsic_original = hsic_values[B]
 
@@ -102,7 +104,6 @@ def hsic(
     threshold = alpha
     # reject if p_val <= threshold
     reject_p_val = p_val <= threshold
-
 
     # Comment: doing this is equivalent (understand why)
     # test output test (quantile)
