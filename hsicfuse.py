@@ -4,6 +4,7 @@ from jax import random, jit, vmap, lax
 from functools import partial
 from jax.scipy.special import logsumexp
 
+
 @partial(jit, static_argnums = (3, 4, 5, 6, 7, 8))
 def hsicfuse(
     X, 
@@ -169,16 +170,15 @@ def hsicfuse(
                     ones = jnp.ones(n) 
                     # compute HSIC permuted values (only permute L)
                     # followting the equation (5) from Song et al. 2012 (quadratic time)
-                    compute_hsic = lambda index : (jnp.trace(K @ L[index][:, index]) 
-                                                   + (ones @ K @ ones.T) * (ones @ L[index][:, index] @ ones.T) / ((n-1)*(n-2))
-                                                   - 2 * (ones @ K @ L[index][:, index] @ ones.T) / (n-2)
+                    compute_hsic = lambda index : ((ones @ K @ L[index][:, index] @ ones) 
+                                                   + (ones @ K @ ones) * (ones @ L @ ones) / ((n-1)*(n-2))
+                                                   - 2 * (ones @ K @ L[index][:, index] @ ones) / (n-2)
                                                   ) / (n*(n-3))
                     # vectorise the equation
                     # hsic_values = vmap(compute_hsic)(idx) # This allows parallel computation # Batch size too large
                     hsic_values = lax.map(compute_hsic, idx)
                     # set each row of M to be the HSIC values (the last one is the original statistic(s))
-                    M = M.at[kernel_count * number_bandwidths + i].set(hsic_values)
-                    M = M / jnp.sqrt(nomalizer)
+                    M = M.at[kernel_count * number_bandwidths + i].set(hsic_values / jnp.sqrt(nomalizer))
     
     # compute permuted and original statistics
     all_statistics = logsumexp(lambda_multiplier * M, axis=0, b = 1/N) # (B+1,)
@@ -193,8 +193,8 @@ def hsicfuse(
         return output.astype(int), p_val 
     else:
         return output.astype(int) # In Jax: False.astype(int) = 0
-    
-    
+
+
 def distances(X, Y, l, max_samples=None, matrix=False):
     if l == "l1":
         def dist(x, y):
@@ -213,7 +213,7 @@ def distances(X, Y, l, max_samples=None, matrix=False):
         return output
     else:
         return output[jnp.triu_indices(output.shape[0])]                       
-                       
+
 
 def kernel_matrix(pairwise_matrix, l, kernel, bandwidth, rq_kernel_exponent=0.5):
     """
