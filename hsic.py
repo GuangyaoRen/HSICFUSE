@@ -70,7 +70,7 @@ def hsic(
     n = Y.shape[0]
     mn = m + n
     assert n >= 2 and m >= 2
-    assert X.shape == Y.shape
+    assert X.shape[0] == Y.shape[0]
     # assert epsilon != 0
     # assert 0 < alpha  and alpha < 1
     assert kernel in ("gaussian", "laplace", "imq")
