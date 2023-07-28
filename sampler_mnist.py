@@ -27,7 +27,8 @@ def ind_X_Y_corrupt(key, N, corrupt_proportion):
                           random.randint(split_key_for_corrupt, (N,), 0, 10), 
                           idx_Y)
 
-    Y = idx_Y.reshape(N, 1).astype(jnp.float64)
+    # Y = idx_Y.reshape(N, 1).astype(jnp.float64)
+    Y = idx_Y.reshape(N, 1).astype(jnp.float32)
     return X, Y
 
 # # Example usage
