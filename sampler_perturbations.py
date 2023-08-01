@@ -121,38 +121,37 @@ def f_theta_sampler(
     )
 
 
-def sampler_perturbations(
-    m,
-    n,
-    d,
-    number_perturbations,
-    seed,
-    scale=1,
-):
-    """
-    Sample from a uniform distribution and a perturbed uniform distribution.
+# def sampler_perturbations(
+#     m,
+#     n,
+#     d,
+#     number_perturbations,
+#     seed,
+#     scale=1,
+# ):
+#     """
+#     Sample from a uniform distribution and a perturbed uniform distribution.
     
-    inputs: m                   : integer (sample size perturbed uniform)
-            n                   : integer (sample size uniform)
-            d                   : integer (dimension)
-            number_perturbations: integer (number of perturbations)
-            seed                : integer (randomness seed)
-            scale               : scalar (amplitude of permutation between 0 and 1)
-    output: samples from perturbed uniform distribution (m, d)
-            samples from uniform distribution (n, d)
-    """
-    assert 0 <= scale and scale <= 1
-    s = 1
-    p = number_perturbations
-    # this makes the pertubation stretch all the way to zero
-    perturbation_multiplier = np.exp(d) * p ** s * scale 
-    rs = np.random.RandomState(seed)
-    if number_perturbations == 0 or scale == 0:
-        X = rs.uniform(0, 1, (m, d))
-        Y = rs.uniform(0, 1, (n, d))     
-    else:
-        s = 1
-        X = f_theta_sampler(seed + 1, seed + 2, m, p, s, perturbation_multiplier, d)
-        Y = rs.uniform(0, 1, (n, d))
-    return jnp.array(X), jnp.array(Y)
+#     inputs: m                   : integer (sample size perturbed uniform)
+#             n                   : integer (sample size uniform)
+#             d                   : integer (dimension)
+#             number_perturbations: integer (number of perturbations)
+#             seed                : integer (randomness seed)
+#             scale               : scalar (amplitude of permutation between 0 and 1)
+#     output: samples from perturbed uniform distribution (m, d)
+#             samples from perturbed uniform distribution (m, d)
+#     """
+#     assert 0 <= scale and scale <= 1
+#     s = 1
+#     p = number_perturbations
+#     # this makes the pertubation stretch all the way to zero
+#     perturbation_multiplier = np.exp(d) * p ** s * scale 
+#     Z = f_theta_sampler(0, seed, m, p, s, perturbation_multiplier, d)
+#     X = jnp.expand_dims(Z[:, 0], 1)
+#     Y = jnp.expand_dims(Z[:, 1], 1)
+#     return X, Y
+
+
+
+
 

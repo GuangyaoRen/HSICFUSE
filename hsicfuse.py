@@ -63,7 +63,7 @@ def hsicfuse(
     n = Y.shape[0]
     # mn = m + n
     assert n >= 2 and m >= 2
-    assert X.shape == Y.shape
+    assert X.shape[0] == Y.shape[0]
     assert 0 < alpha and alpha < 1
     assert lambda_multiplier > 0
     assert number_bandwidths > 1 and type(number_bandwidths) == int
@@ -164,24 +164,38 @@ def hsicfuse(
                     # set the last row to be the original indices (identity map)
                     idx = idx.at[B].set(jnp.array([i for i in range(m)]))
 
-                    # compute nomalizer
+                    # # compute nomalizer
+                    # nomalizer = jnp.sqrt(jnp.sum(K**4)) * jnp.sqrt(jnp.sum(L**4)) / (n*(n-1))
+                    # # a vector of ones with dimension of n
+                    # ones = jnp.ones(n) 
+                    # # compute HSIC permuted values (only permute L)
+                    # # followting the equation (5) from Song et al. 2012 (quadratic time)
+                    # compute_hsic = lambda index : (jnp.trace(K @ L[index][:, index]) 
+                    #                                + (ones @ K @ ones) * (ones @ L @ ones) / ((n-1)*(n-2))
+                    #                                - 2 * (ones @ K @ L[index][:, index] @ ones) / (n-2)
+                    #                               ) / (n*(n-3)) 
+                    # # vectorise the equation
+                    # # hsic_values = vmap(compute_hsic)(idx) # This allows parallel computation # Batch size too large
+                    # hsic_values = lax.map(compute_hsic, idx)
+                    # # set each row of M to be the HSIC values (the last one is the original statistic(s))
+                    # M = M.at[kernel_count * number_bandwidths + i].set(hsic_values / jnp.sqrt(nomalizer))
+
+                    # compute HSIC permuted values (B + 1, )
+                    # Song et al., Feature Selection via Dependence Maximization, Equation 5
                     nomalizer = jnp.sqrt(jnp.sum(K**4)) * jnp.sqrt(jnp.sum(L**4)) / (n*(n-1))
-                    # a vector of ones with dimension of n
-                    ones = jnp.ones(n) 
-                    # compute HSIC permuted values (only permute L)
-                    # followting the equation (5) from Song et al. 2012 (quadratic time)
-                    compute_hsic = lambda index : ((ones @ K @ L[index][:, index] @ ones) 
-                                                   + (ones @ K @ ones) * (ones @ L @ ones) / ((n-1)*(n-2))
-                                                   - 2 * (ones @ K @ L[index][:, index] @ ones) / (n-2)
-                                                  ) / (n*(n-3))
-                    # vectorise the equation
-                    # hsic_values = vmap(compute_hsic)(idx) # This allows parallel computation # Batch size too large
-                    hsic_values = lax.map(compute_hsic, idx)
+                    hsic_term_2 = jnp.sum(K) * jnp.sum(L) / (m - 1) / (m - 2)
+                    def compute_hsic(index): 
+                        K_perm = K[index][:, index]
+                        K_perm_L = K_perm @ L
+                        hsic_term_1 = jnp.trace(K_perm_L)
+                        hsic_term_3 = jnp.sum(K_perm_L) / (m - 2)
+                        return (hsic_term_1 + hsic_term_2 - 2 * hsic_term_3) / m / (m - 3)
+                    hsic_values = lax.map(compute_hsic, idx) # (B + 1, )
                     # set each row of M to be the HSIC values (the last one is the original statistic(s))
-                    M = M.at[kernel_count * number_bandwidths + i].set(hsic_values / jnp.sqrt(nomalizer))
+                    M = M.at[kernel_count * number_bandwidths + i].set(hsic_values / jnp.sqrt(nomalizer))                   
     
     # compute permuted and original statistics
-    all_statistics = logsumexp(lambda_multiplier * M, axis=0, b = 1/N) # (B+1,)
+    all_statistics = logsumexp(lambda_multiplier * M, axis=0, b = 1 / N) # (B+1,)
     original_statistic = all_statistics[-1] # (1,)
     
     # compute statistics and test output

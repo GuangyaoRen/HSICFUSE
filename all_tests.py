@@ -22,6 +22,9 @@ def hsicagginc200_test(X, Y, key, seed):
 def hsicaggincquad_test(X, Y, key, seed):
     return int(agginc("hsic", X, Y, R=X.shape[0]-1, return_dictionary=False))
 
+def nfsic_test(X, Y, key, seed):
+    return int()
+
 
 
 
