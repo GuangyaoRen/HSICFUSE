@@ -63,7 +63,7 @@ def hsicfuse(
     n = Y.shape[0]
     # mn = m + n
     assert n >= 2 and m >= 2
-    assert X.shape[0] == Y.shape[0]
+    assert m == n
     assert 0 < alpha and alpha < 1
     assert lambda_multiplier > 0
     assert number_bandwidths > 1 and type(number_bandwidths) == int
@@ -191,6 +191,15 @@ def hsicfuse(
                         hsic_term_3 = jnp.sum(K_perm_L) / (m - 2)
                         return (hsic_term_1 + hsic_term_2 - 2 * hsic_term_3) / m / (m - 3)
                     hsic_values = lax.map(compute_hsic, idx) # (B + 1, )
+
+                    # def compute_hsic(index): 
+                    #     L_perm = L[index][:, index]
+                    #     K_L_perm = K @ L_perm
+                    #     hsic_term_1 = jnp.trace(K_L_perm)
+                    #     hsic_term_3 = jnp.sum(K_L_perm) / (m - 2)
+                    #     return (hsic_term_1 + hsic_term_2 - 2 * hsic_term_3) / m / (m - 3)
+                    # hsic_values = lax.map(compute_hsic, idx) # (B + 1, )
+                    
                     # set each row of M to be the HSIC values (the last one is the original statistic(s))
                     # M = M.at[kernel_count * number_bandwidths + i].set(hsic_values / jnp.sqrt(nomalizer))   
                     M = M.at[kernel_count * number_bandwidths + i].set(hsic_values) 
