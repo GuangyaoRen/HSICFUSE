@@ -2,6 +2,7 @@ import numpy as np
 from hsicfuse import hsicfuse
 from hsic import hsic, human_readable_dict
 from agginc.jax import agginc, human_readable_dict
+from wittawatj_tests import nfsic
 
 
 def hsicfuse_test(X, Y, key, seed):
@@ -23,7 +24,7 @@ def hsicaggincquad_test(X, Y, key, seed):
     return int(agginc("hsic", X, Y, R=X.shape[0]-1, return_dictionary=False))
 
 def nfsic_test(X, Y, key, seed):
-    return int()
+    return int(nfsic(X, Y, seed))
 
 
 
