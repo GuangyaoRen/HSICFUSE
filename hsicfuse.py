@@ -13,7 +13,7 @@ def hsicfuse(
     alpha               = 0.05,
     kernels             = ("laplace", "gaussian"),
     lambda_multiplier   = 1,
-    number_bandwidths   = 10, # See paper why 10 is enought
+    number_bandwidths   = 10, # only at this value, the empirical alpha is around 0.05
     number_permutations = 2000,
     return_p_val        = False
 ):
@@ -27,7 +27,7 @@ def hsicfuse(
     Parameters
     ----------
     X                  : array
-                         The shape of X is (n, d), where n is the number of samples and d is the dimension
+                         The shape of X is (m, d), where n is the number of samples and d is the dimension
     Y                  : array
                          The shape of X is (n, d), where n is the number of samples and d is the dimension 
     key                : scalar
@@ -53,10 +53,10 @@ def hsicfuse(
     Returns
     -------
     output             : int
-                         0 if the arrgegated HSIC-FUSE test fails to reject the null
+                         0 if the HSIC-FUSE test fails to reject the null
                            (i.e., P_xy  = P_xP_y independent)
-                         1 if the arrgegated HSIC-FUSE test rejects the null
-                           (i.e., P_xy  != P_xP_y dependent)
+                         1 if the HSIC-FUSE test rejects the null
+                           (i.e., P_xy != P_xP_y dependent)
     """
     # Assertions
     m = X.shape[0]
@@ -66,7 +66,7 @@ def hsicfuse(
     assert m == n
     assert 0 < alpha and alpha < 1
     assert lambda_multiplier > 0
-    assert number_bandwidths > 1 and type(number_bandwidths) == int
+    assert number_bandwidths >= 1 and type(number_bandwidths) == int
     assert number_permutations > 0 and type(number_permutations) == int
     if type(kernels) is str:
         # convert to list
@@ -111,10 +111,17 @@ def hsicfuse(
     number_kernels = len(kernels)
     kernels_l1 = [k for k in kernels if k in all_kernels_l1]
     kernels_l2 = [k for k in kernels if k in all_kernels_l2]
-      
+
+    # Setup for permutations
+    key, subkey = random.split(key)
+    B = number_permutations
+    # (B+1, m): rows of permuted indices
+    idx = random.permutation(subkey, jnp.array([[i for i in range(m)]] * (B + 1)), axis=1, independent=True)  
+    # set the last row to be the original indices (identity map)
+    idx = idx.at[B].set(jnp.array([i for i in range(m)]))
+    
     # Compute all permuted HSIC estimates
     N = number_bandwidths * number_kernels
-    B = number_permutations
     M = jnp.zeros((N, B + 1)) # each entry of M stores a statistic
     kernel_count = -1 # to count which kernel we are for all different bandwidths 
     for r in range(2):
@@ -157,12 +164,7 @@ def hsicfuse(
                     L = kernel_matrix(pairwise_matrix_Y, l, kernel, bandwidth_Y)
                     L = L.at[jnp.diag_indices(L.shape[0])].set(0)
                     
-                    # Setup for permutations
-                    key, subkey = random.split(key)
-                    # (B+1, m): rows of permuted indices
-                    idx = random.permutation(subkey, jnp.array([[i for i in range(m)]] * (B + 1)), axis=1, independent=True)  
-                    # set the last row to be the original indices (identity map)
-                    idx = idx.at[B].set(jnp.array([i for i in range(m)]))
+                    
 
                     # # compute nomalizer
                     # nomalizer = jnp.sqrt(jnp.sum(K**4)) * jnp.sqrt(jnp.sum(L**4)) / (n*(n-1))
@@ -183,15 +185,37 @@ def hsicfuse(
                     # compute HSIC permuted values (B + 1, )
                     # Song et al., Feature Selection via Dependence Maximization, Equation 5
                     # nomalizer = jnp.sqrt(jnp.sum(K**4)) * jnp.sqrt(jnp.sum(L**4)) / (n*(n-1))
-                    hsic_term_2 = jnp.sum(K) * jnp.sum(L) / (m - 1) / (m - 2)
-                    def compute_hsic(index): 
-                        K_perm = K[index][:, index]
-                        K_perm_L = K_perm @ L
-                        hsic_term_1 = jnp.trace(K_perm_L)
-                        hsic_term_3 = jnp.sum(K_perm_L) / (m - 2)
-                        return (hsic_term_1 + hsic_term_2 - 2 * hsic_term_3) / m / (m - 3)
+                    def compute_hsic(index):
+                        L_perm = L[index][:, index]
+                        ones = jnp.ones((n, 1))
+                        term1 = jnp.trace(K @ L_perm)
+                        term2 = jnp.sum(K)*jnp.sum(L_perm) / ((n-1) * (n-1))
+                        term3 = (2 / (n-2)) * jnp.dot(jnp.dot(jnp.dot(ones.T, K), L_perm), ones)
+                        result = (term1 + term2 - term3) / (n * (n-3))
+                        return result[0,0]
                     hsic_values = lax.map(compute_hsic, idx) # (B + 1, )
+                    
+                    # hsic_term_2 = jnp.sum(K) * jnp.sum(L) / (m - 1) / (m - 2)
+                    # def compute_hsic(index): 
+                    #     K_perm = K[index][:, index]
+                    #     K_perm_L = K_perm @ L
+                    #     hsic_term_1 = jnp.trace(K_perm_L)
+                    #     hsic_term_3 = jnp.sum(K_perm_L) / (m - 2)
+                    #     return (hsic_term_1 + hsic_term_2 - 2 * hsic_term_3) / m / (m - 3)
+                    # hsic_values = lax.map(compute_hsic, idx) # (B + 1, )
 
+                    # def compute_hsic(index):
+                    #     L_perm = L[index][:, index]
+                    #     term = 0
+                    #     for i in range(n):
+                    #         for j in range(n):
+                    #             for r in range(n):
+                    #                 for s in range(n):
+                    #                     if i != j and i != r and i != s and j != r and j != s and r != s:
+                    #                         term += 0.25 * (K[i,j] - K[i,r] - K[j,r] + K[r,s]) * (L_perm[i,j] - L_perm[i,r] - L_perm[j,r] + L_perm[r,s])
+                    #     return term/n/(n-1)/(n-2)/(n-3)
+                    # hsic_values = lax.map(compute_hsic, idx) # (B + 1, )
+                    
                     # def compute_hsic(index): 
                     #     L_perm = L[index][:, index]
                     #     K_L_perm = K @ L_perm
