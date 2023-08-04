@@ -3,7 +3,6 @@ from hsicfuse import hsicfuse
 from hsic import hsic, human_readable_dict
 from agginc.jax import agginc, human_readable_dict
 from wittawatj_tests import nfsic, nyhsic, fhsic
-from nystromhsic import nystromhsic
 
 
 def hsicfuse_test(X, Y, key, seed):
