@@ -2,7 +2,8 @@ import numpy as np
 from hsicfuse import hsicfuse
 from hsic import hsic, human_readable_dict
 from agginc.jax import agginc, human_readable_dict
-from wittawatj_tests import nfsic
+from wittawatj_tests import nfsic, nyhsic, fhsic
+from nystromhsic import nystromhsic
 
 
 def hsicfuse_test(X, Y, key, seed):
@@ -25,6 +26,14 @@ def hsicaggincquad_test(X, Y, key, seed):
 
 def nfsic_test(X, Y, key, seed):
     return int(nfsic(X, Y, seed))
+
+def nyhsic_test(X, Y, key, seed):
+    return int(nyhsic(X, Y, seed))
+
+def fhsic_test(X, Y, key, seed):
+    return int(fhsic(X, Y, seed))
+
+
 
 
 
