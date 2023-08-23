@@ -88,9 +88,13 @@ def hsic(
     
     # compute both kernel matrices
     pairwise_matrix_X = distances(X, X, l, matrix=True)
-    K = kernel_matrix(pairwise_matrix_X, l, kernel, bandwidth)
+    distance_X = pairwise_matrix_X[jnp.triu_indices(pairwise_matrix_X.shape[0])]
+    bandwidth_X = jnp.median(distance_X)
+    K = kernel_matrix(pairwise_matrix_X, l, kernel, bandwidth_X)
     pairwise_matrix_Y = distances(Y, Y, l, matrix=True)
-    L = kernel_matrix(pairwise_matrix_Y, l, kernel, bandwidth)
+    distance_Y = pairwise_matrix_Y[jnp.triu_indices(pairwise_matrix_Y.shape[0])]
+    bandwidth_Y = jnp.median(distance_Y)
+    L = kernel_matrix(pairwise_matrix_Y, l, kernel, bandwidth_Y)
 
     # compute HSIC permuted values (B + 1, )
     # check the scaling 
@@ -195,3 +199,4 @@ def human_readable_dict(dictionary):
             for key in dictionary[meta_key].keys():
                 if isinstance(dictionary[meta_key][key], jnp.ndarray):
                     dictionary[meta_key][key] = dictionary[meta_key][key].item()
+

@@ -1,6 +1,7 @@
 import pickle
 import jax.numpy as jnp
 from jax import random
+import numpy as np
 
 with open('dataset/mnist.data', 'rb') as handle:
     mnist_dic = pickle.load(handle)
@@ -34,3 +35,17 @@ def ind_X_Y_corrupt(key, N, corrupt_proportion):
 # # Example usage
 # key = random.PRNGKey(0)
 # X, Y = ind_X_Y_corrupt(key, 1000, 0.1)
+
+def ind_X_Y_corrupt_np(seed, N, corrupt_proportion):
+    assert corrupt_proportion >= 0
+    assert corrupt_proportion <= 1
+    max_idx_X = 6000
+    rs = np.random.RandomState(0)
+    idx_Y = rs.randint(10, size=N)
+    idx_X = rs.randint(max_idx_X, size=N)
+    X = np.array([mnist_dic[str(idx_Y[i])][idx_X[i]] for i in range(N)])
+    if corrupt_proportion > 0:
+        idx_corrupt = rs.choice([i for i in range(N)], size=int(N * corrupt_proportion), replace=False)
+        idx_Y[idx_corrupt] = rs.randint(10, size=int(N * corrupt_proportion))
+    Y = np.array(idx_Y.reshape(N, 1), dtype="float64")
+    return X, Y

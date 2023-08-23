@@ -1,9 +1,56 @@
 import jax.numpy as jnp
+import numpy as np
 from jax import random
 import matplotlib.pyplot as plt
+    
+
+def shuffle(Y, C):
+    """
+    Shuffle the last C of pairs in the Y array.
+    """
+    if C != 0:
+        # Determin the number of entries to shuffle
+        num_to_shuffle = int(C * Y.shape[0]) 
+        
+        # Split the array into two parts: the part to keep in order and the part to shuffle
+        Y_first = np.copy(Y[:-num_to_shuffle])
+        Y_last = np.copy(Y[-num_to_shuffle:])
+        
+        # Shuffle the last portion
+        np.random.shuffle(Y_last)
+        
+        # Concatenate the two parts back together
+        Y_shuffled = np.vstack((Y_first, Y_last))
+        
+        return Y_shuffled
+    else:
+        return np.array(Y)
 
 
-def sampler_gclusters(key, L, theta, N, permute):
+def generate_means(L, d):
+    # Create an equidistant point matrix in higher dimensions
+    assert d > 1, "d should be greater than 1"
+    
+    # Set distance
+    distance = L
+    
+    # Initialize points at the origin
+    O = np.zeros(d)
+    A = np.zeros(d)
+    B = np.zeros(d)
+    
+    # Set first point
+    A[0] = distance
+    
+    # For B, we move along the second dimension in a manner so that OB = OA
+    B[1] = (np.sqrt(3) * distance) / 2
+    B[0] = distance / 2
+    means = np.vstack([O, A, B])
+
+    return means
+        
+
+def sampler_gclusters(seed, L, d, theta, N, C):
     """
     Sample an X from any one of the three equidistant two-dimensional Gaussian distributions
     then the Y is sampled from the clockwise adjacent Gaussian.
@@ -31,39 +78,24 @@ def sampler_gclusters(key, L, theta, N, permute):
            Each Y[i] is a sample drawn from the clockwise adjacent Gaussian to the Gaussian where X[i] is drawn.
     """ 
     # means
-    means = [
-        jnp.array([0,0]),
-        jnp.array([L * jnp.cos(theta), L * jnp.sin(theta)]),
-        jnp.array([(L / 2) * jnp.cos(theta) - (L * jnp.sqrt(3) / 2) * jnp.sin(theta), 
-                   (L / 2) * jnp.sin(theta) + (L * jnp.sqrt(3) / 2) * jnp.cos(theta)])  
-    ]
+    means = generate_means(L, d)
     # Covariance matrix
-    var = 5
-    cov = jnp.array([[var, 0], [0, var]])
-    
-    key, subkey = random.split(key, 2)
-    # Select which Gaussian to sample X from
-    idx_Y = random.choice(subkey, 3, shape=(N, ), p=jnp.array([1/3, 1/3, 1/3]))
-    # Sample Y from the next Gaussian clockwisely (Dependence between X and Y)
+    var = 5.0
+    cov = np.eye(d)*var
+
+    np.random.seed(seed)
+    idx_Y = np.random.choice(3, size=(N, ), p=np.array([1/3, 1/3, 1/3]))
     idx_X = (idx_Y + 1) % 3
     
-    # Sample X and Y
-    key_X = random.split(key, N)
-    X = [random.multivariate_normal(key_X, mean=means[i], cov=cov, shape=(N,)) for key_X, i in zip(key_X, idx_X)]
-    key_Y = random.split(key, N)
-    Y = [random.multivariate_normal(key_Y, mean=means[i], cov=cov, shape=(N,)) for key_Y, i in zip(key_Y, idx_Y)]
+    # Sample X, Y
+    X = [np.random.multivariate_normal(mean=means[i], cov=cov, size=(N,)) for i in idx_X]
+    Y = [np.random.multivariate_normal(mean=means[i], cov=cov, size=(N,)) for i in idx_Y]
+    X, Y = np.array(X)[:, 0], np.array(Y)[:, 1]
+    Y = shuffle(Y, C)
     
-    if permute == False:
-        X, Y = jnp.array(X)[:, 0], jnp.array(Y)[:, 1]
-        return X, Y # Dependent
-    else:
-        idx_Y_permuted = random.permutation(subkey, idx_Y)
-        Y_permuted = [random.multivariate_normal(key_Y, mean=means[i], cov=cov, shape=(N,)) 
-                      for key_Y, i in zip(key_Y, idx_Y_permuted)]
-        X, Y = jnp.array(X)[:, 0], jnp.array(Y_permuted)[:, 1]
-        return X, Y # Independent
+    return X, Y
 
-    
+
 def plot_sampler_gclusters(L, theta, X, Y):
     plt.figure(figsize=(8, 8))
     # means
@@ -91,13 +123,4 @@ def plot_sampler_gclusters(L, theta, X, Y):
     plt.yticks(range(int(min(y_1))-1, int(max(y_1))+1, 5))
     # plt.grid(True)
     plt.show()
-    
-    
-# # Test example
-# N = 1000
-# L = 1
-# theta = 0   
-# key = random.PRNGKey(0)
-# X, Y = sampler_gclusters(key, L, theta, N, permute = False)
-# plot_sampler_gclusters(L, theta, X, Y)
 

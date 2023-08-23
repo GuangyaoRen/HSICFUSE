@@ -184,7 +184,7 @@ def hsicfuse(
 
                     # compute HSIC permuted values (B + 1, )
                     # Song et al., Feature Selection via Dependence Maximization, Equation 5
-                    # nomalizer = jnp.sqrt(jnp.sum(K**4)) * jnp.sqrt(jnp.sum(L**4)) / (n*(n-1))
+                    nomalizer = jnp.sqrt(jnp.sum(K**4)) * jnp.sqrt(jnp.sum(L**4)) / (n*(n-1))
                     def compute_hsic(index):
                         L_perm = L[index][:, index]
                         ones = jnp.ones((n, 1))
@@ -225,8 +225,7 @@ def hsicfuse(
                     # hsic_values = lax.map(compute_hsic, idx) # (B + 1, )
                     
                     # set each row of M to be the HSIC values (the last one is the original statistic(s))
-                    # M = M.at[kernel_count * number_bandwidths + i].set(hsic_values / jnp.sqrt(nomalizer))   
-                    M = M.at[kernel_count * number_bandwidths + i].set(hsic_values) 
+                    M = M.at[kernel_count * number_bandwidths + i].set(hsic_values / jnp.sqrt(nomalizer))   
     
     # compute permuted and original statistics
     all_statistics = logsumexp(lambda_multiplier * M, axis=0, b = 1 / N) # (B+1,)

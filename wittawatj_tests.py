@@ -13,6 +13,7 @@ import fsic.util as util
 import fsic.indtest as it
 import fsic.kernel as kernel
 import fsic.feature as fea
+
 from fsic.indtest import GaussNFSIC as fsic_GaussNFSIC
 from fsic.data import PairedData as fsic_PairedData
 import logging
@@ -55,19 +56,16 @@ def nfsic(X, Y, r, J=10, n_permute=500, alpha=0.05):
     nfsic_opt_result  = nfsic_opt.perform_test(te)
     return int(nfsic_opt_result['h0_rejected'])
 
-
+    
 # job_nyhsic_med(
-def nyhsic(X, Y, r, n_features=10, alpha=0.05):
+def nyhsic(X, Y, r, n_features=10, alpha=0.05): 
     """
     HSIC with Nystrom approximation. 
     """
     n_simulate = 2000
     # use full sample for testing. Merge training and test sets
     pdata = fsic_PairedData(X, Y)
-    tr, te = pdata.subsample(X.shape[0], seed=r+4).split_tr_te(tr_proportion=0.5, seed=r+5)
-    pdata = tr + te
-    X, Y = pdata.xy()
-    k, l = kl_kgauss_median_bounds(pdata)
+    k, l =kl_kgauss_median(pdata)
     # randomly choose the inducing points from X, Y
     induce_x = util.subsample_rows(X, n_features, seed=r+2)
     induce_y = util.subsample_rows(Y, n_features, seed=r+3)
@@ -85,9 +83,6 @@ def fhsic(X, Y, r, n_features=10, alpha=0.05):
     n_simulate = 2000
     # use full sample for testing. Merge training and test sets
     pdata = fsic_PairedData(X, Y)
-    tr, te = pdata.subsample(X.shape[0], seed=r+4).split_tr_te(tr_proportion=0.5, seed=r+5)
-    pdata = tr + te
-    X, Y = pdata.xy()
     medx = util.meddistance(X, subsample=1000)
     medy = util.meddistance(Y, subsample=1000)
     sigmax2 = medx**2
@@ -97,6 +92,7 @@ def fhsic(X, Y, r, n_features=10, alpha=0.05):
     ffhsic = it.FiniteFeatureHSIC(fmx, fmy, n_simulate=n_simulate, alpha=alpha, seed=r+89)
     ffhsic_result = ffhsic.perform_test(pdata)
     return int(ffhsic_result['h0_rejected'])
+
 
 
 
